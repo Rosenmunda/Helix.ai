@@ -32,6 +32,14 @@ interface AppState {
   
   mockMode: boolean;
   setMockMode: (mock: boolean) => void;
+  
+  darkMode: boolean;
+  toggleDarkMode: () => void;
+}
+
+// Initialise dark mode on boot
+if (typeof document !== 'undefined') {
+  document.documentElement.classList.add('dark');
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -75,5 +83,18 @@ export const useStore = create<AppState>((set) => ({
   setMockMode: (mock) => {
     apiClient.setMockMode(mock);
     set({ mockMode: mock });
-  }
+  },
+  
+  darkMode: true,
+  toggleDarkMode: () => set((state) => {
+    const nextMode = !state.darkMode;
+    if (typeof document !== 'undefined') {
+      if (nextMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+    return { darkMode: nextMode };
+  })
 }));

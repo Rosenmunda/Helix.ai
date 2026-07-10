@@ -11,24 +11,24 @@ export const Dashboard: React.FC = () => {
   const { activeTab, selectedProtein } = useStore();
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col bg-brand-light">
+    <div className="flex-1 overflow-hidden flex flex-col bg-brand-light dark:bg-brand-dark">
       {activeTab === 'dashboard' ? (
         /* Performance Dashboard View */
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 bg-brand-light dark:bg-brand-dark">
           <div className="max-w-6xl mx-auto">
             <ModelSelection />
           </div>
         </div>
       ) : (
         /* 2-Column Inference Workspace Split Pane */
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden divide-y md:divide-y-0 md:divide-x divide-brand-gray/25">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden divide-y md:divide-y-0 md:divide-x divide-brand-gray/25 dark:divide-brand-gray/10">
           
           {/* Left Column: Target Selection & Configuration (35% width) */}
-          <div className="w-full md:w-96 flex flex-col overflow-y-auto p-5 shrink-0 bg-white border-r border-brand-gray/20">
+          <div className="w-full md:w-96 flex flex-col overflow-y-auto p-5 shrink-0 bg-white dark:bg-[#151622] border-r border-brand-gray/20 dark:border-brand-gray/10">
             <div className="space-y-6">
               <div>
-                <h3 className="text-xs font-bold text-brand-dark uppercase tracking-wider mb-2">Workspace Setup</h3>
-                <p className="text-[11px] text-brand-gray leading-normal">
+                <h3 className="text-xs font-bold text-brand-dark dark:text-white uppercase tracking-wider mb-2">Workspace Setup</h3>
+                <p className="text-[11px] text-brand-gray dark:text-brand-gray/80 leading-normal">
                   Configure model parameters and select the target protein for the inference run.
                 </p>
               </div>
@@ -39,19 +39,19 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* Right Column: Inference Output & Analytics (65% width) */}
-          <div className="flex-1 flex flex-col overflow-y-auto p-6 bg-brand-light">
+          <div className="flex-1 flex flex-col overflow-y-auto p-6 bg-brand-light dark:bg-brand-dark">
             {selectedProtein ? (
               <div className="space-y-6 max-w-4xl">
                 
                 {/* Active target banner */}
-                <div className="bg-white border border-brand-gray/20 px-4 py-3 rounded-lg flex items-center justify-between text-xs text-brand-dark shadow-sm">
+                <div className="bg-white dark:bg-[#151622] border border-brand-gray/20 dark:border-brand-gray/10 px-4 py-3 rounded-lg flex items-center justify-between text-xs text-brand-dark dark:text-brand-light shadow-sm">
                   <div className="flex items-center gap-2">
-                    <span className="text-brand-gray font-semibold">Active target:</span>
-                    <span className="font-extrabold text-brand-crimson">{selectedProtein.name}</span>
-                    <span className="text-brand-gray">({selectedProtein.uniprot_id || selectedProtein.protein_id})</span>
+                    <span className="text-brand-gray dark:text-brand-gray/60 font-semibold">Active target:</span>
+                    <span className="font-extrabold text-brand-crimson dark:text-brand-red">{selectedProtein.name}</span>
+                    <span className="text-brand-gray dark:text-brand-gray/60">({selectedProtein.uniprot_id || selectedProtein.protein_id})</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-brand-gray font-medium">
-                    <Info className="w-3.5 h-3.5 text-brand-crimson" />
+                  <div className="flex items-center gap-1.5 text-brand-gray dark:text-brand-gray/60 font-medium">
+                    <Info className="w-3.5 h-3.5 text-brand-crimson dark:text-brand-red" />
                     Interactive Workbench
                   </div>
                 </div>
@@ -67,8 +67,8 @@ export const Dashboard: React.FC = () => {
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-brand-gray">
                 <ShieldAlert className="w-8 h-8 text-brand-gray/50 mb-3" />
-                <p className="text-xs font-bold text-brand-dark uppercase tracking-wider">No active target</p>
-                <p className="text-xs text-brand-gray max-w-xs mt-1.5 leading-normal">
+                <p className="text-xs font-bold text-brand-dark dark:text-white uppercase tracking-wider">No active target</p>
+                <p className="text-xs text-brand-gray dark:text-brand-gray/60 max-w-xs mt-1.5 leading-normal">
                   Use the left panel to search and load a protein symbol. The inference pipeline will load here.
                 </p>
               </div>

@@ -97,11 +97,11 @@ export const PredictionPanel: React.FC = () => {
   if (!selectedProtein) return null;
 
   return (
-    <div className="space-y-4 select-none text-brand-dark">
+    <div className="space-y-4 select-none text-brand-dark dark:text-brand-light">
       {/* trigger prediction bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border border-brand-gray/25 bg-white rounded-lg shadow-sm">
-        <div className="flex items-center gap-2 text-brand-dark">
-          <BrainCircuit className="w-4 h-4 text-brand-crimson" />
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border border-brand-gray/25 dark:border-brand-gray/10 bg-white dark:bg-[#151622] rounded-lg shadow-sm">
+        <div className="flex items-center gap-2 text-brand-dark dark:text-white">
+          <BrainCircuit className="w-4 h-4 text-brand-crimson dark:text-brand-red" />
           <span className="text-xs font-bold">Run Inference Ensemble Pipeline</span>
         </div>
         <button
@@ -130,29 +130,29 @@ export const PredictionPanel: React.FC = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg text-xs font-semibold">
+        <div className="bg-red-50 dark:bg-red-950/10 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 p-4 rounded-lg text-xs font-semibold">
           {error}
         </div>
       )}
 
       {/* Loading spacer */}
       {loading && (
-        <div className="border border-brand-gray/20 bg-white rounded-lg p-6 flex flex-col items-center justify-center space-y-3 h-48 shadow-sm">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-crimson" />
-          <span className="text-xs text-brand-gray font-semibold">Computing classification network metrics...</span>
+        <div className="border border-brand-gray/20 dark:border-brand-gray/10 bg-white dark:bg-[#151622] rounded-lg p-6 flex flex-col items-center justify-center space-y-3 h-48 shadow-sm">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-crimson dark:text-brand-red" />
+          <span className="text-xs text-brand-gray dark:text-brand-gray/60 font-semibold">Computing classification network metrics...</span>
         </div>
       )}
 
       {/* Flat Prediction results display */}
       {currentPrediction && !loading && (
-        <div className="border border-brand-gray/25 rounded-lg overflow-hidden bg-white shadow-sm">
+        <div className="border border-brand-gray/25 dark:border-brand-gray/10 rounded-lg overflow-hidden bg-white dark:bg-[#151622] shadow-sm">
           
           {/* Header */}
-          <div className="bg-brand-light px-4 py-2.5 border-b border-brand-gray/20 flex justify-between items-center text-brand-dark">
+          <div className="bg-brand-light dark:bg-slate-950 px-4 py-2.5 border-b border-brand-gray/20 dark:border-brand-gray/10 flex justify-between items-center text-brand-dark dark:text-white">
             <span className="text-[10px] font-bold uppercase tracking-wider">Inference Results</span>
             <button
               onClick={handleExportJSON}
-              className="text-brand-crimson hover:text-brand-red font-bold text-[10px] flex items-center gap-1 cursor-pointer"
+              className="text-brand-crimson dark:text-brand-red hover:text-brand-red dark:hover:text-brand-crimson font-bold text-[10px] flex items-center gap-1 cursor-pointer"
             >
               <FileJson className="w-3.5 h-3.5" />
               <span>Save Raw Data</span>
@@ -163,39 +163,39 @@ export const PredictionPanel: React.FC = () => {
             {/* Classification & flat bar */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
               <div>
-                <span className="text-[10px] text-brand-gray font-bold uppercase tracking-wider block">Essentiality Classification</span>
+                <span className="text-[10px] text-brand-gray dark:text-brand-gray/60 font-bold uppercase tracking-wider block">Essentiality Classification</span>
                 <span className={`inline-block text-xs font-extrabold px-2.5 py-0.5 rounded border mt-1.5 ${
                   currentPrediction.prediction === 'Essential'
-                    ? 'bg-rose-50 border-rose-200 text-rose-600'
-                    : 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                    ? 'bg-rose-50 dark:bg-rose-950/10 border-rose-200 dark:border-rose-900/30 text-rose-600 dark:text-rose-455'
+                    : 'bg-emerald-50 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-455'
                 }`}>
                   {currentPrediction.prediction}
                 </span>
               </div>
 
               <div>
-                <span className="text-[10px] text-brand-gray font-bold uppercase tracking-wider block">Inference Confidence</span>
+                <span className="text-[10px] text-brand-gray dark:text-brand-gray/60 font-bold uppercase tracking-wider block">Inference Confidence</span>
                 <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 bg-brand-light h-2 rounded border border-brand-gray/20 overflow-hidden">
+                  <div className="flex-1 bg-brand-light dark:bg-brand-dark h-2 rounded border border-brand-gray/20 dark:border-brand-gray/10 overflow-hidden">
                     <div 
                       className={`h-full rounded-full ${currentPrediction.prediction === 'Essential' ? 'bg-brand-crimson' : 'bg-brand-gray'}`}
                       style={{ width: `${currentPrediction.confidence * 100}%` }}
                     />
                   </div>
-                  <span className="text-xs font-bold text-brand-dark font-mono">{(currentPrediction.confidence * 100).toFixed(1)}%</span>
+                  <span className="text-xs font-bold text-brand-dark dark:text-white font-mono">{(currentPrediction.confidence * 100).toFixed(1)}%</span>
                 </div>
               </div>
 
               <div className="text-right">
-                <span className="text-[10px] text-brand-gray font-bold uppercase tracking-wider block">Inference Latency</span>
-                <span className="text-xs font-bold text-brand-dark font-mono block mt-1.5">{currentPrediction.execution_time_ms} ms</span>
+                <span className="text-[10px] text-brand-gray dark:text-brand-gray/60 font-bold uppercase tracking-wider block">Inference Latency</span>
+                <span className="text-xs font-bold text-brand-dark dark:text-white font-mono block mt-1.5">{currentPrediction.execution_time_ms} ms</span>
               </div>
             </div>
 
             {/* Explanation box */}
-            <div className="pt-3 border-t border-brand-gray/15">
-              <span className="text-[10px] text-brand-gray font-bold uppercase tracking-wider block mb-1.5">Biological Basis & Annotations</span>
-              <div className="bg-brand-light border border-brand-gray/20 p-3.5 rounded text-xs text-brand-dark leading-relaxed font-mono">
+            <div className="pt-3 border-t border-brand-gray/15 dark:border-brand-gray/10">
+              <span className="text-[10px] text-brand-gray dark:text-brand-gray/60 font-bold uppercase tracking-wider block mb-1.5">Biological Basis & Annotations</span>
+              <div className="bg-brand-light dark:bg-brand-dark/40 border border-brand-gray/20 dark:border-brand-gray/10 p-3.5 rounded text-xs text-brand-dark dark:text-brand-light leading-relaxed font-mono">
                 {explanation || 'Reasoning text failed to load.'}
               </div>
             </div>

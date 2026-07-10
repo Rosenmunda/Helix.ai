@@ -1,9 +1,9 @@
 import React from 'react';
 import { useStore } from '../../store/useStore';
-import { ShieldAlert, Activity, LayoutDashboard, SearchCode, Database } from 'lucide-react';
+import { ShieldAlert, Activity, LayoutDashboard, SearchCode, Database, Sun, Moon } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { activeTab, setActiveTab, mockMode, setMockMode } = useStore();
+  const { activeTab, setActiveTab, mockMode, setMockMode, darkMode, toggleDarkMode } = useStore();
 
   return (
     <header className="h-14 bg-brand-dark border-b border-brand-gray/25 px-6 flex items-center justify-between select-none shrink-0 text-brand-light">
@@ -93,6 +93,15 @@ export const Header: React.FC = () => {
           <Database className="w-3 h-3 text-brand-crimson" />
           UniProt
         </a>
+
+        {/* Theme Toggle Button */}
+        <button
+          onClick={toggleDarkMode}
+          className="text-brand-light hover:text-white bg-white/5 hover:bg-white/10 p-1.5 rounded border border-brand-gray/20 flex items-center justify-center transition cursor-pointer"
+          title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {darkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-300" />}
+        </button>
       </div>
     </header>
   );

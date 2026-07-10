@@ -16,7 +16,7 @@ const queryClient = new QueryClient({
 export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex flex-col h-screen w-screen overflow-hidden bg-brand-light text-brand-dark font-sans antialiased">
+      <div className="flex flex-col h-screen w-screen overflow-hidden bg-brand-light dark:bg-brand-dark text-brand-dark dark:text-brand-light font-sans antialiased">
         
         {/* Top Navbar */}
         <Header />
