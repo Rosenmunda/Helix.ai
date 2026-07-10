@@ -164,7 +164,7 @@ export const ModelSelection: React.FC = () => {
           <span className="text-[10px] text-brand-gray font-mono">Metrics Normalized (0-100)</span>
         </div>
 
-        <div className="w-full h-80">
+        <div className="w-full h-64 sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}

@@ -14,17 +14,17 @@ export const Dashboard: React.FC = () => {
     <div className="flex-1 overflow-hidden flex flex-col bg-brand-light dark:bg-brand-dark">
       {activeTab === 'dashboard' ? (
         /* Performance Dashboard View */
-        <div className="flex-1 overflow-y-auto p-6 bg-brand-light dark:bg-brand-dark">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-brand-light dark:bg-brand-dark">
           <div className="max-w-6xl mx-auto">
             <ModelSelection />
           </div>
         </div>
       ) : (
         /* 2-Column Inference Workspace Split Pane */
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden divide-y md:divide-y-0 md:divide-x divide-brand-gray/25 dark:divide-brand-gray/10">
+        <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden divide-y md:divide-y-0 md:divide-x divide-brand-gray/25 dark:divide-brand-gray/10">
           
-          {/* Left Column: Target Selection & Configuration (35% width) */}
-          <div className="w-full md:w-96 flex flex-col overflow-y-auto p-5 shrink-0 bg-white dark:bg-[#151622] border-r border-brand-gray/20 dark:border-brand-gray/10">
+          {/* Left Column: Target Selection & Configuration (35% width on desktop, 100% on mobile) */}
+          <div className="w-full md:w-96 flex flex-col overflow-visible md:overflow-y-auto p-4 sm:p-5 shrink-0 bg-white dark:bg-[#151622] border-r border-brand-gray/20 dark:border-brand-gray/10">
             <div className="space-y-6">
               <div>
                 <h3 className="text-xs font-bold text-brand-dark dark:text-white uppercase tracking-wider mb-2">Workspace Setup</h3>
@@ -38,14 +38,14 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Inference Output & Analytics (65% width) */}
-          <div className="flex-1 flex flex-col overflow-y-auto p-6 bg-brand-light dark:bg-brand-dark">
+          {/* Right Column: Inference Output & Analytics (65% width on desktop, 100% on mobile) */}
+          <div className="flex-1 flex flex-col overflow-visible md:overflow-y-auto p-4 sm:p-6 bg-brand-light dark:bg-brand-dark">
             {selectedProtein ? (
               <div className="space-y-6 max-w-4xl">
                 
                 {/* Active target banner */}
-                <div className="bg-white dark:bg-[#151622] border border-brand-gray/20 dark:border-brand-gray/10 px-4 py-3 rounded-lg flex items-center justify-between text-xs text-brand-dark dark:text-brand-light shadow-sm">
-                  <div className="flex items-center gap-2">
+                <div className="bg-white dark:bg-[#151622] border border-brand-gray/20 dark:border-brand-gray/10 px-4 py-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-brand-dark dark:text-brand-light shadow-sm">
+                  <div className="flex items-center flex-wrap gap-2">
                     <span className="text-brand-gray dark:text-brand-gray/60 font-semibold">Active target:</span>
                     <span className="font-extrabold text-brand-crimson dark:text-brand-red">{selectedProtein.name}</span>
                     <span className="text-brand-gray dark:text-brand-gray/60">({selectedProtein.uniprot_id || selectedProtein.protein_id})</span>
@@ -65,7 +65,7 @@ export const Dashboard: React.FC = () => {
 
               </div>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-brand-gray">
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-brand-gray min-h-[300px]">
                 <ShieldAlert className="w-8 h-8 text-brand-gray/50 mb-3" />
                 <p className="text-xs font-bold text-brand-dark dark:text-white uppercase tracking-wider">No active target</p>
                 <p className="text-xs text-brand-gray dark:text-brand-gray/60 max-w-xs mt-1.5 leading-normal">
