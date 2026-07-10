@@ -1,0 +1,211 @@
+import React, { useState } from 'react';
+import { useStore } from '../../store/useStore';
+import api from '../../services/api';
+import { Loader2, BrainCircuit, Activity, FileJson } from 'lucide-react';
+
+export const PredictionPanel: React.FC = () => {
+  const { 
+    selectedProtein, 
+    selectedModel, 
+    currentPrediction, 
+    setCurrentPrediction,
+    explanation,
+    setExplanation,
+    drugs,
+    setDrugs,
+    papers,
+    setPapers,
+    loading, 
+    setLoading, 
+    error, 
+    setError 
+  } = useStore();
+
+  const [scanState, setScanState] = useState<'idle' | 'extracting' | 'inferring' | 'explaining' | 'fetching_drugs' | 'fetching_research'>('idle');
+
+  const handlePredict = async () => {
+    if (!selectedProtein) return;
+    
+    setLoading(true);
+    setError(null);
+    setCurrentPrediction(null);
+    setExplanation(null);
+    setDrugs([]);
+    setPapers([]);
+    
+    try {
+      setScanState('extracting');
+      await new Promise(r => setTimeout(r, 400));
+
+      setScanState('inferring');
+      const predictionRes = await api.createPrediction(selectedProtein.id, selectedModel);
+      const prediction = predictionRes.data;
+      
+      setScanState('explaining');
+      const explanationRes = await api.getExplanation(prediction.id);
+      let explanationText = explanationRes.data.explanation;
+      if (!explanationText) {
+        explanationText = api.getFallbackExplanation(
+          selectedProtein.name, 
+          prediction.prediction === 'Essential', 
+          prediction.confidence, 
+          selectedModel
+        );
+      }
+      
+      setScanState('fetching_drugs');
+      const drugsRes = await api.getDrugs(selectedProtein.id);
+      
+      setScanState('fetching_research');
+      const researchRes = await api.getResearch(selectedProtein.id);
+
+      setCurrentPrediction(prediction);
+      setExplanation(explanationText);
+      setDrugs(drugsRes.data.drugs);
+      setPapers(researchRes.data.papers);
+      
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Inference pipeline failure.');
+    } finally {
+      setLoading(false);
+      setScanState('idle');
+    }
+  };
+
+  const handleExportJSON = () => {
+    if (!selectedProtein || !currentPrediction) return;
+    const report = {
+      timestamp: new Date().toISOString(),
+      protein: selectedProtein,
+      model: selectedModel,
+      prediction: currentPrediction,
+      explanation,
+      drugs,
+      papers
+    };
+    
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(report, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `Inference_Report_${selectedProtein.name}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  if (!selectedProtein) return null;
+
+  return (
+    <div className="space-y-4 select-none text-brand-dark">
+      {/* trigger prediction bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border border-brand-gray/25 bg-white rounded-lg shadow-sm">
+        <div className="flex items-center gap-2 text-brand-dark">
+          <BrainCircuit className="w-4 h-4 text-brand-crimson" />
+          <span className="text-xs font-bold">Run Inference Ensemble Pipeline</span>
+        </div>
+        <button
+          onClick={handlePredict}
+          disabled={loading}
+          className="w-full sm:w-auto bg-brand-crimson hover:bg-brand-red text-white font-bold px-5 py-2 rounded text-xs transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+              <span>
+                {scanState === 'extracting' && 'Extracting descriptors...'}
+                {scanState === 'inferring' && 'Model predicting...'}
+                {scanState === 'explaining' && 'Writing reasoning...'}
+                {scanState === 'fetching_drugs' && 'Querying DrugBank...'}
+                {scanState === 'fetching_research' && 'Searching PubMed...'}
+              </span>
+            </>
+          ) : (
+            <>
+              <Activity className="w-3.5 h-3.5 animate-pulse text-white" />
+              <span>Execute Inference</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg text-xs font-semibold">
+          {error}
+        </div>
+      )}
+
+      {/* Loading spacer */}
+      {loading && (
+        <div className="border border-brand-gray/20 bg-white rounded-lg p-6 flex flex-col items-center justify-center space-y-3 h-48 shadow-sm">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-crimson" />
+          <span className="text-xs text-brand-gray font-semibold">Computing classification network metrics...</span>
+        </div>
+      )}
+
+      {/* Flat Prediction results display */}
+      {currentPrediction && !loading && (
+        <div className="border border-brand-gray/25 rounded-lg overflow-hidden bg-white shadow-sm">
+          
+          {/* Header */}
+          <div className="bg-brand-light px-4 py-2.5 border-b border-brand-gray/20 flex justify-between items-center text-brand-dark">
+            <span className="text-[10px] font-bold uppercase tracking-wider">Inference Results</span>
+            <button
+              onClick={handleExportJSON}
+              className="text-brand-crimson hover:text-brand-red font-bold text-[10px] flex items-center gap-1 cursor-pointer"
+            >
+              <FileJson className="w-3.5 h-3.5" />
+              <span>Save Raw Data</span>
+            </button>
+          </div>
+
+          <div className="p-4 space-y-4">
+            {/* Classification & flat bar */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <div>
+                <span className="text-[10px] text-brand-gray font-bold uppercase tracking-wider block">Essentiality Classification</span>
+                <span className={`inline-block text-xs font-extrabold px-2.5 py-0.5 rounded border mt-1.5 ${
+                  currentPrediction.prediction === 'Essential'
+                    ? 'bg-rose-50 border-rose-200 text-rose-600'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                }`}>
+                  {currentPrediction.prediction}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-[10px] text-brand-gray font-bold uppercase tracking-wider block">Inference Confidence</span>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex-1 bg-brand-light h-2 rounded border border-brand-gray/20 overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full ${currentPrediction.prediction === 'Essential' ? 'bg-brand-crimson' : 'bg-brand-gray'}`}
+                      style={{ width: `${currentPrediction.confidence * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-brand-dark font-mono">{(currentPrediction.confidence * 100).toFixed(1)}%</span>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <span className="text-[10px] text-brand-gray font-bold uppercase tracking-wider block">Inference Latency</span>
+                <span className="text-xs font-bold text-brand-dark font-mono block mt-1.5">{currentPrediction.execution_time_ms} ms</span>
+              </div>
+            </div>
+
+            {/* Explanation box */}
+            <div className="pt-3 border-t border-brand-gray/15">
+              <span className="text-[10px] text-brand-gray font-bold uppercase tracking-wider block mb-1.5">Biological Basis & Annotations</span>
+              <div className="bg-brand-light border border-brand-gray/20 p-3.5 rounded text-xs text-brand-dark leading-relaxed font-mono">
+                {explanation || 'Reasoning text failed to load.'}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+    </div>
+  );
+};
+export default PredictionPanel;
