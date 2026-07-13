@@ -84,7 +84,7 @@ export const ProteinSearch: React.FC = () => {
         <div className="relative">
           <input
             type="text"
-            placeholder="Enter gene symbol (e.g. TP53)..."
+            placeholder="Enter Protein ID (e.g. A0A1B0GTH6)..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);

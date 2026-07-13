@@ -98,3 +98,9 @@ export const useStore = create<AppState>((set) => ({
     return { darkMode: nextMode };
   })
 }));
+
+// Update store when backend healthcheck resolves
+apiClient.onConnectionChange = (mock) => {
+  useStore.setState({ mockMode: mock });
+};
+export default useStore;

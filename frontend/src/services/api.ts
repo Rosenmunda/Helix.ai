@@ -1,4 +1,6 @@
 import type { Protein, ModelMetrics, Prediction, Drug, Paper } from '../types';
+import { executeInference } from './predictionEngine';
+
 
 const API_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:8000/api/v1';
 
@@ -244,6 +246,7 @@ const MOCK_RESEARCH: Record<string, Paper[]> = {
 
 export class APIClient {
   private useMock: boolean = true;
+  public onConnectionChange?: (mock: boolean) => void;
 
   constructor() {
     this.checkBackendConnection();
@@ -262,13 +265,16 @@ export class APIClient {
       if (response.ok) {
         console.log('Successfully connected to Essential Proteins Backend. Live Mode active.');
         this.useMock = false;
+        if (this.onConnectionChange) this.onConnectionChange(false);
       } else {
         console.warn('Backend returned error health status. Fallback to Mock Mode.');
         this.useMock = true;
+        if (this.onConnectionChange) this.onConnectionChange(true);
       }
     } catch (e) {
       console.warn('Backend is unreachable. Running in local Mock Mode.');
       this.useMock = true;
+      if (this.onConnectionChange) this.onConnectionChange(true);
     }
   }
 
@@ -334,7 +340,24 @@ export class APIClient {
     const response = await fetch(`${API_BASE}/models/metrics`);
     if (!response.ok) throw new Error('Failed to fetch model metrics');
     const data = await response.json();
-    return { data };
+    
+    // Map object to array and rename key 'auc_roc' to 'roc_auc'
+    const models: ModelMetrics[] = Object.entries(data).map(([modelType, metrics]: [string, any]) => ({
+      type: modelType as 'ML' | 'GNN' | 'Graph',
+      accuracy: metrics.accuracy,
+      precision: metrics.precision,
+      recall: metrics.recall,
+      f1_score: metrics.f1_score,
+      roc_auc: metrics.auc_roc,
+      test_set_size: 2500,
+      version: modelType === 'GNN' ? 'v2.1.0' : modelType === 'Graph' ? 'v1.8.1' : 'v1.4.2'
+    }));
+
+    return {
+      data: {
+        models
+      }
+    };
   }
 
   async createPrediction(proteinId: number, modelType: string): Promise<{ data: Prediction }> {
@@ -346,27 +369,15 @@ export class APIClient {
       const protein = MOCK_PROTEINS.find(p => p.id === proteinId);
       if (!protein) throw new Error('Protein not found');
 
-      // Determine prediction and confidence based on protein qualities
-      // High pLI score suggests essentiality
-      const pli = protein.pli_score ?? 0.5;
-      const isEssential = pli >= 0.6;
-      
-      // Calculate confidence around the pLI score
-      let confidence = 0.5 + Math.abs(pli - 0.5) * 0.9;
-      // Add slight model-specific variations
-      if (modelType === 'GNN') {
-        confidence = Math.min(0.99, confidence + 0.05);
-      } else if (modelType === 'ML') {
-        confidence = Math.max(0.5, confidence - 0.02);
-      }
+      const result = executeInference(proteinId, modelType as 'ML' | 'GNN' | 'Graph');
       
       return {
         data: {
           id: Math.floor(Math.random() * 100000),
           protein_id: proteinId,
           model_type: modelType,
-          prediction: isEssential ? 'Essential' : 'Non-Essential',
-          confidence: parseFloat(confidence.toFixed(3)),
+          prediction: result.prediction,
+          confidence: result.confidence,
           execution_time_ms: latency
         }
       };
@@ -444,8 +455,24 @@ export class APIClient {
 
     const response = await fetch(`${API_BASE}/drugs/${proteinId}`);
     if (!response.ok) throw new Error('Failed to fetch drugs');
-    const data = await response.json();
-    return { data };
+    const drugs = await response.json();
+    
+    // Map drug array fields
+    const mappedDrugs: Drug[] = drugs.map((d: any) => ({
+      name: d.name,
+      drug_bank_id: d.drug_bank_id || `DB${d.id}`,
+      approval_status: d.phase === 'Approved' ? 'Approved' : 'Experimental',
+      type: d.type || 'Small Molecule',
+      source: 'DrugBank'
+    }));
+
+    return {
+      data: {
+        protein_id: proteinId,
+        drug_count: mappedDrugs.length,
+        drugs: mappedDrugs
+      }
+    };
   }
 
   async getResearch(proteinId: number): Promise<{ data: { protein_id: number; paper_count: number; papers: Paper[] } }> {
@@ -483,8 +510,25 @@ export class APIClient {
 
     const response = await fetch(`${API_BASE}/research/${proteinId}`);
     if (!response.ok) throw new Error('Failed to fetch research papers');
-    const data = await response.json();
-    return { data };
+    const papers = await response.json();
+    
+    // Map Paper fields to match frontend Paper interface
+    const mappedPapers: Paper[] = papers.map((p: any) => ({
+      pubmed_id: String(p.id),
+      title: p.title,
+      journal: p.journal,
+      publication_year: p.published_year,
+      abstract: `Authors: ${p.authors}. Relevance Score: ${p.relevance_score}`,
+      doi: `10.1000/pmid.${p.id}`
+    }));
+
+    return {
+      data: {
+        protein_id: proteinId,
+        paper_count: mappedPapers.length,
+        papers: mappedPapers
+      }
+    };
   }
 }
 
