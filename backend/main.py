@@ -372,3 +372,91 @@ def get_metrics():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
+
+
+# ===================== DRUG REPURPOSING ENGINE =====================
+import requests
+import google.generativeai as genai
+from dotenv import load_dotenv
+from pathlib import Path
+
+load_dotenv()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
+LOCAL_DATASET_PATH = os.path.join(BASE_DIR, "models", "MASTER_DATABASE.csv")
+DESTRUCTIVE_KEYWORDS = ['inhibitor','antagonist','blocker','suppressor','negative modulator']
+
+def get_local_drugs(gene_name, df_local):
+    gene_df = df_local[df_local['gene_name'].str.upper()==gene_name.upper()]
+    if gene_df.empty: return []
+    inhibitors_df = gene_df[gene_df['interaction_type'].str.lower().isin(DESTRUCTIVE_KEYWORDS)]
+    out=[]
+    for _,r in inhibitors_df.iterrows():
+        out.append({
+            "drug":str(r["drug_normalized"]).upper(),
+            "types":str(r["interaction_type"]).title(),
+            "source":r.get("interaction_source_db_name","Local Dataset"),
+            "pmids":[]
+        })
+    return out
+
+def fetch_drugs_from_dgidb(gene_name):
+    url="https://dgidb.org/api/graphql"
+    query="""query GetInteractions($geneName:String!){genes(names:[$geneName]){nodes{interactions{drug{name} interactionTypes{type} publications{pmid}}}}}"""
+    try:
+        res=requests.post(url,json={"query":query,"variables":{"geneName":gene_name.upper()}},timeout=20)
+        data=res.json()
+        interactions=data["data"]["genes"]["nodes"][0]["interactions"]
+    except Exception:
+        return []
+    drugs=[]
+    for inter in interactions:
+        types=[t["type"].lower() for t in inter.get("interactionTypes",[]) if t.get("type")]
+        if any(k in t for t in types for k in DESTRUCTIVE_KEYWORDS):
+            drugs.append({
+                "drug":inter["drug"]["name"].upper(),
+                "types":", ".join(types).title(),
+                "source":"DGIdb GraphQL API",
+                "pmids":[p["pmid"] for p in inter.get("publications",[])]
+            })
+    return drugs
+
+def generate_gemini_research_insight(gene,drug,pmids):
+    if not GEMINI_API_KEY:
+        return "Gemini API key missing."
+    model=genai.GenerativeModel("gemini-2.5-flash")
+    pm=f"PMIDs: {', '.join(map(str,pmids))}" if pmids else "No PMIDs."
+    prompt=f"Explain how {drug} inhibits {gene}. {pm}"
+    try:
+        return model.generate_content(prompt).text
+    except Exception as e:
+        return str(e)
+
+def run_repurposing_engine(gene):
+    try:
+        local_df=pd.read_csv(LOCAL_DATASET_PATH)
+        local=get_local_drugs(gene,local_df)
+    except Exception:
+        local=[]
+    api=fetch_drugs_from_dgidb(gene)
+    uniq={}
+    for d in local+api:
+        if d["drug"] not in uniq:
+            uniq[d["drug"]]=d
+        else:
+            uniq[d["drug"]]["pmids"]=list(set(uniq[d["drug"]]["pmids"]+d["pmids"]))
+    results=[]
+    for c in list(uniq.values())[:3]:
+        c["research_summary"]=generate_gemini_research_insight(gene,c["drug"],c["pmids"])
+        results.append(c)
+    return {"gene":gene,"candidates":results}
+
+@app.get("/api/v1/drugs-real/{protein_id}")
+def get_real_drugs(protein_id:int):
+    idx=protein_id-1
+    if idx<0 or idx>=len(df):
+        raise HTTPException(status_code=404,detail="Protein not found")
+    gene=str(df.iloc[idx]["protein_id"])
+    return run_repurposing_engine(gene)
