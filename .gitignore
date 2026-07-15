@@ -5,6 +5,7 @@ frontend/dist/
 
 # Local env files
 frontend/.env*
+backend/.env
 
 # IDEs and editors
 .idea/
