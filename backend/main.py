@@ -7,6 +7,12 @@ import torch
 import torch.nn.functional as F
 import pickle
 import os
+import time
+import json
+import requests
+from dotenv import load_dotenv
+import google.generativeai as genai
+from google.api_core.exceptions import ResourceExhausted
 
 app = FastAPI(title="Helix.ai GNN Prediction API", version="1.0.0")
 
@@ -28,6 +34,7 @@ SAGE_PATH = os.path.join(BASE_DIR, "models", "graphsage_model.pkl")
 GRAPH_CSV_PATH = os.path.join(BASE_DIR, "models", "final_graph_dataset_mapped.csv")
 GRAPH_MODEL_PATH = os.path.join(BASE_DIR, "models", "graph_theory_model.pkl")
 UI_NAMES_PATH = os.path.join(BASE_DIR, "models", "ui_dropdown_proteins_by_name.csv")
+LOCAL_DATASET_PATH = os.path.join(BASE_DIR, "models", "MASTER_DATABASE.csv")
 
 # Global data containers
 df = None
@@ -236,6 +243,7 @@ def startup_event():
     else:
         print("WARNING: MASTER_DATABASE.csv not found at", LOCAL_DATASET_PATH)
 
+
 @app.get("/health")
 def health_check():
     return {"status": "ok", "version": "1.0.0"}
@@ -295,7 +303,7 @@ def search_proteins(q: str = "", limit: int = 15, model_type: str = 'GNN'):
             gene_name_val = uniprot_to_gene.get(uniprot_id.upper(), uniprot_id)
             protein_desc = uniprot_to_name.get(uniprot_id.upper(), gene_name_val)
             results.append({
-                "id": int(idx) + 1, # Make 1-indexed to match api.ts Mock IDs format
+                "id": int(idx) + 1,
                 "name": protein_desc,
                 "protein_id": uniprot_id,
                 "gene_name": gene_name_val,
@@ -304,7 +312,7 @@ def search_proteins(q: str = "", limit: int = 15, model_type: str = 'GNN'):
                 "features": {
                     "degree_centrality": float(row['Degree_Centrality']),
                     "betweenness_centrality": float(row['Betweenness_Centrality']),
-                    "sequence_length": int(row['Molecular_Weight'] / 110.0), # Estimate seq length from MW
+                    "sequence_length": int(row['Molecular_Weight'] / 110.0),
                     "expression_level": float(row['Eigenvector_Centrality'])
                 },
                 "is_essential": bool(row['label'] == 1)
@@ -452,8 +460,55 @@ def get_explanation(prediction_id: int):
         )
     }
 
+# ===================== GEMINI API ROTATION LOGIC =====================
+load_dotenv()
+API_KEYS = []
+for i in range(1, 4):
+    key = os.getenv(f"GEMINI_API_KEY_{i}")
+    if key:
+        API_KEYS.append(key)
+        
+# Fallback for single key setup
+if not API_KEYS:
+    single_key = os.getenv("GEMINI_API_KEY")
+    if single_key:
+        API_KEYS.append(single_key)
+
+CURRENT_KEY_INDEX = 0
+
+def generate_with_retry(prompt, max_retries=None):
+    """
+    Executes Gemini API calls with automatic key rotation on 429 (ResourceExhausted).
+    """
+    global CURRENT_KEY_INDEX
+    if not API_KEYS:
+        raise ValueError("No Gemini API keys found in .env")
+        
+    if max_retries is None:
+        max_retries = max(3, len(API_KEYS)) 
+        
+    attempts = 0
+    while attempts < max_retries:
+        try:
+            genai.configure(api_key=API_KEYS[CURRENT_KEY_INDEX])
+            # Updated to 3.1 flash lite as requested
+            model = genai.GenerativeModel("gemini-3.1-flash-lite")
+            response = model.generate_content(prompt)
+            return response.text
+        except ResourceExhausted:
+            attempts += 1
+            CURRENT_KEY_INDEX = (CURRENT_KEY_INDEX + 1) % len(API_KEYS)
+            print(f"Rate limit hit. Rotating to API Key {CURRENT_KEY_INDEX + 1}...")
+            time.sleep(1)
+        except Exception as e:
+            # Let other errors propagate naturally
+            raise e
+            
+    raise Exception("All API keys have exhausted their rate limits. Please try again later.")
+# =====================================================================
+
 def generate_drugs_via_gemini(gene_name, protein_fullname, master_row=None):
-    if not GEMINI_API_KEY:
+    if not API_KEYS:
         return []
     
     any_approved = "Unknown"
@@ -489,9 +544,7 @@ def generate_drugs_via_gemini(gene_name, protein_fullname, master_row=None):
     """
     
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(prompt)
-        text = response.text.strip()
+        text = generate_with_retry(prompt).strip()
         if text.startswith("```"):
             lines = text.split("\n")
             if lines[0].startswith("```"):
@@ -500,7 +553,6 @@ def generate_drugs_via_gemini(gene_name, protein_fullname, master_row=None):
                 lines = lines[:-1]
             text = "\n".join(lines).strip()
             
-        import json
         drugs_list = json.loads(text)
         if isinstance(drugs_list, list):
             for idx, d in enumerate(drugs_list):
@@ -563,7 +615,7 @@ def get_fallback_drugs(gene_name, protein_fullname, master_row=None):
     return output
 
 def generate_research_via_gemini(gene_name, protein_fullname, master_row=None):
-    if not GEMINI_API_KEY:
+    if not API_KEYS:
         return []
         
     depmap_class = "Unknown"
@@ -595,9 +647,7 @@ def generate_research_via_gemini(gene_name, protein_fullname, master_row=None):
     """
     
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(prompt)
-        text = response.text.strip()
+        text = generate_with_retry(prompt).strip()
         if text.startswith("```"):
             lines = text.split("\n")
             if lines[0].startswith("```"):
@@ -606,7 +656,6 @@ def generate_research_via_gemini(gene_name, protein_fullname, master_row=None):
                 lines = lines[:-1]
             text = "\n".join(lines).strip()
             
-        import json
         papers_list = json.loads(text)
         if isinstance(papers_list, list):
             return papers_list
@@ -750,17 +799,6 @@ def get_metrics():
 
 
 # ===================== DRUG REPURPOSING ENGINE =====================
-import requests
-import google.generativeai as genai
-from dotenv import load_dotenv
-from pathlib import Path
-
-load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-
-LOCAL_DATASET_PATH = os.path.join(BASE_DIR, "models", "MASTER_DATABASE.csv")
 DESTRUCTIVE_KEYWORDS = ['inhibitor','antagonist','blocker','suppressor','negative modulator']
 
 def get_local_drugs(gene_name, df_local):
@@ -799,13 +837,12 @@ def fetch_drugs_from_dgidb(gene_name):
     return drugs
 
 def generate_gemini_research_insight(gene,drug,pmids):
-    if not GEMINI_API_KEY:
+    if not API_KEYS:
         return "Gemini API key missing."
-    model=genai.GenerativeModel("gemini-2.5-flash")
     pm=f"PMIDs: {', '.join(map(str,pmids))}" if pmids else "No PMIDs."
     prompt=f"Explain how {drug} inhibits {gene}. {pm}"
     try:
-        return model.generate_content(prompt).text
+        return generate_with_retry(prompt)
     except Exception as e:
         return str(e)
 
@@ -849,8 +886,8 @@ def get_real_drugs(protein_id: int, model_type: str = 'GNN'):
     return run_repurposing_engine(gene)
 
 def generate_gemini_essentiality_brief(gene_name, is_essential, confidence, model_type, features):
-    if not GEMINI_API_KEY:
-        return "Gemini API key is missing. Please configure GEMINI_API_KEY in the backend .env file to enable dynamic AI insights."
+    if not API_KEYS:
+        return "Gemini API key is missing. Please configure GEMINI_API_KEY_1 in the backend .env file to enable dynamic AI insights."
     
     prompt = f"""
     You are an expert bioinformatician. Provide a brief, professional summary (2-3 sentences) explaining why the protein '{gene_name}' is predicted to be '{'Essential' if is_essential else 'Non-Essential'}' by a {model_type} model.
@@ -864,9 +901,7 @@ def generate_gemini_essentiality_brief(gene_name, is_essential, confidence, mode
     """
     
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(prompt)
-        return response.text.strip()
+        return generate_with_retry(prompt).strip()
     except Exception as e:
         return f"Failed to generate Gemini brief: {str(e)}"
 
