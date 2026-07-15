@@ -1,6 +1,7 @@
 import React from 'react';
 import { useStore } from '../../store/useStore';
 import { ShieldAlert, Activity, LayoutDashboard, SearchCode, Database, Sun, Moon } from 'lucide-react';
+import logo from '../../assets/logo.jpg';
 
 export const Header: React.FC = () => {
   const { activeTab, setActiveTab, mockMode, setMockMode, darkMode, toggleDarkMode } = useStore();
@@ -10,11 +11,9 @@ export const Header: React.FC = () => {
       {/* Brand & Title */}
       <div className="flex items-center gap-3 sm:gap-6">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-brand-crimson flex items-center justify-center font-bold text-white text-xs shrink-0">
-            B
-          </div>
+          <img src={logo} alt="Protein Notebook Logo" className="w-6 h-6 object-contain rounded shrink-0" />
           <span className="font-extrabold text-sm text-white tracking-tight shrink-0">
-            Bio-AI <span className="text-brand-gray/60 font-normal text-xs ml-1.5 border-l border-brand-gray/20 pl-1.5 hidden md:inline">Research Platform</span>
+            Protein Notebook <span className="text-brand-gray/60 font-normal text-xs ml-1.5 border-l border-brand-gray/20 pl-1.5 hidden md:inline">Research Platform</span>
           </span>
         </div>
 

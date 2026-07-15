@@ -20,7 +20,7 @@ export const Sidebar: React.FC = () => {
         </div>
         <div>
           <h2 className="font-extrabold text-lg bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent tracking-tight">
-            Bio-AI Core
+            Protein Notebook
           </h2>
           <p className="text-[10px] text-slate-500 font-semibold tracking-wider uppercase">
             Essentiality Predictor
