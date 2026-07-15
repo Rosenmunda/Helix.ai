@@ -33,7 +33,7 @@ export const ModelSelection: React.FC = () => {
 
   // Pre-formatted chart data comparing model performance
   const chartData = metrics.map((model) => ({
-    name: model.type === 'ML' ? 'Classical ML' : model.type === 'GNN' ? 'GNN Graph' : 'Topology Graph',
+    name: model.type === 'GCN' ? 'GCN' : model.type === 'GraphSAGE' ? 'GraphSAGE' : model.type === 'GAT' ? 'GAT' : 'Graph Theory',
     Accuracy: model.accuracy * 100,
     Precision: model.precision * 100,
     Recall: model.recall * 100,
@@ -42,6 +42,18 @@ export const ModelSelection: React.FC = () => {
   }));
 
   const getPercent = (v: number) => `${(v * 100).toFixed(1)}%`;
+
+  const getModelLabel = (type: string) => {
+    if (type === 'GCN') return 'Graph Neural Network (GCN)';
+    if (type === 'GraphSAGE') return 'GraphSAGE Network';
+    if (type === 'GAT') return 'Graph Attention Network (GAT)';
+    if (type === 'GraphTheory') return 'Network Graph Theory';
+    return type;
+  };
+
+  const championModel = [...metrics].sort((a, b) => b.f1_score - a.f1_score)[0];
+  const precisionModel = [...metrics].sort((a, b) => b.precision - a.precision)[0];
+  const rocAucModel = [...metrics].sort((a, b) => b.roc_auc - a.roc_auc)[0];
 
   // Dynamic axis label and border stroke colors for dark/light mode compatibility
   const axisColor = darkMode ? '#8d99ae' : '#2b2d42';
@@ -78,11 +90,11 @@ export const ModelSelection: React.FC = () => {
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-brand-crimson bg-brand-crimson/10 border border-brand-crimson/20 px-2 py-0.5 rounded">
               Champion Model
             </span>
-            <h3 className="text-sm font-bold text-brand-dark dark:text-white mt-2">Graph Neural Network</h3>
+            <h3 className="text-sm font-bold text-brand-dark dark:text-white mt-2">{getModelLabel(championModel.type)}</h3>
           </div>
           <div className="flex justify-between items-baseline mt-4">
             <span className="text-xs text-brand-gray dark:text-brand-gray/60 font-medium">F1-Score Accuracy:</span>
-            <span className="text-2xl font-black text-brand-crimson dark:text-brand-red font-mono">90.7%</span>
+            <span className="text-2xl font-black text-brand-crimson dark:text-brand-red font-mono">{getPercent(championModel.f1_score)}</span>
           </div>
         </div>
 
@@ -92,11 +104,11 @@ export const ModelSelection: React.FC = () => {
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-brand-gray dark:text-brand-light bg-brand-light dark:bg-brand-dark border border-brand-gray/20 dark:border-brand-gray/10 px-2 py-0.5 rounded">
               High Precision
             </span>
-            <h3 className="text-sm font-bold text-brand-dark dark:text-white mt-2">GCN Node Classifier</h3>
+            <h3 className="text-sm font-bold text-brand-dark dark:text-white mt-2">{getModelLabel(precisionModel.type)}</h3>
           </div>
           <div className="flex justify-between items-baseline mt-4">
             <span className="text-xs text-brand-gray dark:text-brand-gray/60 font-medium">Precision Score:</span>
-            <span className="text-2xl font-black text-brand-dark dark:text-white font-mono">91.0%</span>
+            <span className="text-2xl font-black text-brand-dark dark:text-white font-mono">{getPercent(precisionModel.precision)}</span>
           </div>
         </div>
 
@@ -106,11 +118,11 @@ export const ModelSelection: React.FC = () => {
             <span className="text-[9px] font-extrabold uppercase tracking-wider text-brand-gray dark:text-brand-light bg-brand-light dark:bg-brand-dark border border-brand-gray/20 dark:border-brand-gray/10 px-2 py-0.5 rounded">
               Top ROC-AUC
             </span>
-            <h3 className="text-sm font-bold text-brand-dark dark:text-white mt-2">Ensemble Benchmark</h3>
+            <h3 className="text-sm font-bold text-brand-dark dark:text-white mt-2">{getModelLabel(rocAucModel.type)}</h3>
           </div>
           <div className="flex justify-between items-baseline mt-4">
             <span className="text-xs text-brand-gray dark:text-brand-gray/60 font-medium">Area under ROC:</span>
-            <span className="text-2xl font-black text-brand-dark dark:text-white font-mono">95.8%</span>
+            <span className="text-2xl font-black text-brand-dark dark:text-white font-mono">{getPercent(rocAucModel.roc_auc)}</span>
           </div>
         </div>
       </div>
@@ -137,7 +149,7 @@ export const ModelSelection: React.FC = () => {
                   <td className="p-3.5 pl-5 font-bold flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-brand-crimson dark:text-brand-red" />
                     <span>
-                      {model.type === 'ML' ? 'Classical Classifier (Random Forest)' : model.type === 'GNN' ? 'Graph Neural Network (GCN)' : 'Topology Degree Network'}
+                      {getModelLabel(model.type)}
                     </span>
                   </td>
                   <td className="p-3.5 font-mono text-brand-dark dark:text-brand-light font-medium">{getPercent(model.accuracy)}</td>

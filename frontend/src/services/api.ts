@@ -143,20 +143,57 @@ const MOCK_PROTEINS: Protein[] = [
   }
 ];
 
-const MOCK_MODEL_METRICS: ModelMetrics[] = [
+const MOCK_PROTEINS_GRAPH: Protein[] = [
   {
-    type: 'ML',
-    accuracy: 0.885,
-    precision: 0.862,
-    recall: 0.850,
-    f1_score: 0.856,
-    roc_auc: 0.912,
-    test_set_size: 2500,
-    training_date: '2026-06-15T08:00:00Z',
-    version: 'v1.4.2'
+    id: 1,
+    name: 'ARF5',
+    protein_id: '9606.ENSP00000000233',
+    gene_name: 'ARF5',
+    pli_score: 0.85,
+    uniprot_id: 'P84085',
+    features: { degree_centrality: 0.0017, betweenness_centrality: 0.000009, sequence_length: 350, expression_level: 0.000013 }
   },
   {
-    type: 'GNN',
+    id: 2,
+    name: 'ACAP1',
+    protein_id: '9606.ENSP00000158762',
+    gene_name: 'ACAP1',
+    pli_score: 0.15,
+    uniprot_id: 'Q15027',
+    features: { degree_centrality: 0.00025, betweenness_centrality: 0.0, sequence_length: 740, expression_level: 0.0000009 }
+  },
+  {
+    id: 3,
+    name: 'COPA',
+    protein_id: '9606.ENSP00000357048',
+    gene_name: 'COPA',
+    pli_score: 0.95,
+    uniprot_id: 'P53621',
+    features: { degree_centrality: 0.002, betweenness_centrality: 0.00014, sequence_length: 1224, expression_level: 0.000019 }
+  },
+  {
+    id: 4,
+    name: 'RAB11FIP3',
+    protein_id: '9606.ENSP00000262305',
+    gene_name: 'RAB11FIP3',
+    pli_score: 0.35,
+    uniprot_id: 'O75154',
+    features: { degree_centrality: 0.00138, betweenness_centrality: 0.00008, sequence_length: 750, expression_level: 0.0000034 }
+  },
+  {
+    id: 5,
+    name: 'COPB2',
+    protein_id: '9606.ENSP00000329419',
+    gene_name: 'COPB2',
+    pli_score: 0.99,
+    uniprot_id: 'P35606',
+    features: { degree_centrality: 0.0027, betweenness_centrality: 0.00078, sequence_length: 900, expression_level: 0.00057 }
+  }
+];
+
+const MOCK_MODEL_METRICS: ModelMetrics[] = [
+  {
+    type: 'GCN',
     accuracy: 0.924,
     precision: 0.910,
     recall: 0.905,
@@ -167,7 +204,7 @@ const MOCK_MODEL_METRICS: ModelMetrics[] = [
     version: 'v2.1.0'
   },
   {
-    type: 'Graph',
+    type: 'GraphSAGE',
     accuracy: 0.901,
     precision: 0.887,
     recall: 0.879,
@@ -176,6 +213,28 @@ const MOCK_MODEL_METRICS: ModelMetrics[] = [
     test_set_size: 2500,
     training_date: '2026-06-18T14:15:00Z',
     version: 'v1.8.1'
+  },
+  {
+    type: 'GAT',
+    accuracy: 0.885,
+    precision: 0.862,
+    recall: 0.850,
+    f1_score: 0.856,
+    roc_auc: 0.912,
+    test_set_size: 2500,
+    training_date: '2026-06-15T08:00:00Z',
+    version: 'v1.4.2'
+  },
+  {
+    type: 'GraphTheory',
+    accuracy: 0.912,
+    precision: 0.898,
+    recall: 0.892,
+    f1_score: 0.895,
+    roc_auc: 0.942,
+    test_set_size: 2500,
+    training_date: '2026-06-22T09:00:00Z',
+    version: 'v1.0.0'
   }
 ];
 
@@ -286,13 +345,14 @@ export class APIClient {
     this.useMock = enable;
   }
 
-  async searchProteins(query: string, limit: number = 20): Promise<{ data: { results: Protein[]; count: number; query: string } }> {
+  async searchProteins(query: string, limit: number = 20, modelType: string = 'GNN'): Promise<{ data: { results: Protein[]; count: number; query: string } }> {
     if (this.useMock) {
       // Simulate network delay
       await new Promise(r => setTimeout(r, 200));
       const cleanQuery = query.trim().toUpperCase();
+      const sourceList = modelType === 'GraphTheory' ? MOCK_PROTEINS_GRAPH : MOCK_PROTEINS;
       
-      const filtered = MOCK_PROTEINS.filter(p => 
+      const filtered = sourceList.filter(p => 
         p.name.toUpperCase().includes(cleanQuery) || 
         (p.gene_name && p.gene_name.toUpperCase().includes(cleanQuery)) ||
         (p.protein_id && p.protein_id.toUpperCase().includes(cleanQuery))
@@ -307,21 +367,22 @@ export class APIClient {
       };
     }
 
-    const response = await fetch(`${API_BASE}/proteins/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+    const response = await fetch(`${API_BASE}/proteins/search?q=${encodeURIComponent(query)}&limit=${limit}&model_type=${modelType}`);
     if (!response.ok) throw new Error('Failed to search proteins');
     const data = await response.json();
     return { data };
   }
 
-  async getProtein(id: number): Promise<{ data: Protein }> {
+  async getProtein(id: number, modelType: string = 'GNN'): Promise<{ data: Protein }> {
     if (this.useMock) {
       await new Promise(r => setTimeout(r, 150));
-      const protein = MOCK_PROTEINS.find(p => p.id === id);
+      const sourceList = modelType === 'GraphTheory' ? MOCK_PROTEINS_GRAPH : MOCK_PROTEINS;
+      const protein = sourceList.find(p => p.id === id);
       if (!protein) throw new Error('Protein not found');
       return { data: protein };
     }
 
-    const response = await fetch(`${API_BASE}/proteins/${id}`);
+    const response = await fetch(`${API_BASE}/proteins/${id}?model_type=${modelType}`);
     if (!response.ok) throw new Error('Failed to fetch protein details');
     const data = await response.json();
     return { data };
@@ -343,14 +404,14 @@ export class APIClient {
     
     // Map object to array and rename key 'auc_roc' to 'roc_auc'
     const models: ModelMetrics[] = Object.entries(data).map(([modelType, metrics]: [string, any]) => ({
-      type: modelType as 'ML' | 'GNN' | 'Graph',
+      type: modelType as 'GCN' | 'GraphSAGE' | 'GAT' | 'GraphTheory',
       accuracy: metrics.accuracy,
       precision: metrics.precision,
       recall: metrics.recall,
       f1_score: metrics.f1_score,
       roc_auc: metrics.auc_roc,
       test_set_size: 2500,
-      version: modelType === 'GNN' ? 'v2.1.0' : modelType === 'Graph' ? 'v1.8.1' : 'v1.4.2'
+      version: modelType === 'GCN' ? 'v2.1.0' : modelType === 'GraphSAGE' ? 'v1.8.1' : modelType === 'GAT' ? 'v1.4.2' : 'v1.0.0'
     }));
 
     return {
@@ -363,13 +424,13 @@ export class APIClient {
   async createPrediction(proteinId: number, modelType: string): Promise<{ data: Prediction }> {
     if (this.useMock) {
       // Simulate inference latency
-      const latency = modelType === 'GNN' ? 1200 : modelType === 'Graph' ? 800 : 400;
+      const latency = modelType === 'GCN' ? 1200 : modelType === 'GraphSAGE' ? 800 : modelType === 'GAT' ? 400 : 950;
       await new Promise(r => setTimeout(r, latency));
       
       const protein = MOCK_PROTEINS.find(p => p.id === proteinId);
       if (!protein) throw new Error('Protein not found');
 
-      const result = executeInference(proteinId, modelType as 'ML' | 'GNN' | 'Graph');
+      const result = executeInference(proteinId, modelType as 'GCN' | 'GraphSAGE' | 'GAT' | 'GraphTheory');
       
       return {
         data: {
@@ -434,8 +495,9 @@ export class APIClient {
     }
   }
 
-  async getDrugs(proteinId: number): Promise<{ data: { protein_id: number; drug_count: number; drugs: Drug[] } }> {
-    const protein = MOCK_PROTEINS.find(p => p.id === proteinId);
+  async getDrugs(proteinId: number, modelType: string = 'GNN'): Promise<{ data: { protein_id: number; drug_count: number; drugs: Drug[] } }> {
+    const sourceList = modelType === 'Graph' ? MOCK_PROTEINS_GRAPH : MOCK_PROTEINS;
+    const protein = sourceList.find(p => p.id === proteinId);
     const geneName = protein?.name || '';
 
     if (this.useMock) {
@@ -453,7 +515,7 @@ export class APIClient {
       };
     }
 
-    const response = await fetch(`${API_BASE}/drugs/${proteinId}`);
+    const response = await fetch(`${API_BASE}/drugs/${proteinId}?model_type=${modelType}`);
     if (!response.ok) throw new Error('Failed to fetch drugs');
     const drugs = await response.json();
     
@@ -463,7 +525,7 @@ export class APIClient {
       drug_bank_id: d.drug_bank_id || `DB${d.id}`,
       approval_status: d.phase === 'Approved' ? 'Approved' : 'Experimental',
       type: d.type || 'Small Molecule',
-      source: 'DrugBank'
+      source: d.source || 'DrugBank'
     }));
 
     return {
@@ -475,8 +537,9 @@ export class APIClient {
     };
   }
 
-  async getResearch(proteinId: number): Promise<{ data: { protein_id: number; paper_count: number; papers: Paper[] } }> {
-    const protein = MOCK_PROTEINS.find(p => p.id === proteinId);
+  async getResearch(proteinId: number, modelType: string = 'GNN'): Promise<{ data: { protein_id: number; paper_count: number; papers: Paper[] } }> {
+    const sourceList = modelType === 'Graph' ? MOCK_PROTEINS_GRAPH : MOCK_PROTEINS;
+    const protein = sourceList.find(p => p.id === proteinId);
     const geneName = protein?.name || '';
 
     if (this.useMock) {
@@ -508,7 +571,7 @@ export class APIClient {
       };
     }
 
-    const response = await fetch(`${API_BASE}/research/${proteinId}`);
+    const response = await fetch(`${API_BASE}/research/${proteinId}?model_type=${modelType}`);
     if (!response.ok) throw new Error('Failed to fetch research papers');
     const papers = await response.json();
     
@@ -529,6 +592,25 @@ export class APIClient {
         papers: mappedPapers
       }
     };
+  }
+
+  async getGeminiBrief(proteinId: number, modelType: string, prediction: string, confidence: number): Promise<{ data: { brief: string } }> {
+    if (this.useMock) {
+      await new Promise(r => setTimeout(r, 600));
+      const sourceList = modelType === 'GraphTheory' ? MOCK_PROTEINS_GRAPH : MOCK_PROTEINS;
+      const protein = sourceList.find(p => p.id === proteinId);
+      const geneName = protein?.name || 'Target Protein';
+      return {
+        data: {
+          brief: `Gemini Sandbox: The protein ${geneName} was evaluated by the ${modelType} model and predicted as ${prediction} with ${(confidence * 100).toFixed(1)}% confidence. It exhibits critical node properties in topological pathways, making it a key regulator for cell-autonomous viability.`
+        }
+      };
+    }
+
+    const response = await fetch(`${API_BASE}/proteins/${proteinId}/gemini-brief?model_type=${modelType}&prediction=${prediction}&confidence=${confidence}`);
+    if (!response.ok) throw new Error('Failed to fetch Gemini brief');
+    const data = await response.ok ? await response.json() : { brief: "Failed to load Gemini brief from live server." };
+    return { data };
   }
 }
 

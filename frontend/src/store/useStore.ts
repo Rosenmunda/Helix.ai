@@ -6,8 +6,8 @@ interface AppState {
   activeTab: 'dashboard' | 'predict' | 'literature';
   setActiveTab: (tab: 'dashboard' | 'predict' | 'literature') => void;
   
-  selectedModel: 'ML' | 'GNN' | 'Graph';
-  setSelectedModel: (model: 'ML' | 'GNN' | 'Graph') => void;
+  selectedModel: 'GCN' | 'GraphSAGE' | 'GAT' | 'GraphTheory';
+  setSelectedModel: (model: 'GCN' | 'GraphSAGE' | 'GAT' | 'GraphTheory') => void;
   
   selectedProtein: Protein | null;
   setSelectedProtein: (protein: Protein | null) => void;
@@ -17,6 +17,9 @@ interface AppState {
   
   explanation: string | null;
   setExplanation: (explanation: string | null) => void;
+  
+  geminiBrief: string | null;
+  setGeminiBrief: (brief: string | null) => void;
   
   drugs: Drug[];
   setDrugs: (drugs: Drug[]) => void;
@@ -43,11 +46,19 @@ if (typeof document !== 'undefined') {
 }
 
 export const useStore = create<AppState>((set) => ({
-  activeTab: 'dashboard',
+  activeTab: 'predict',
   setActiveTab: (tab) => set({ activeTab: tab }),
   
-  selectedModel: 'ML',
-  setSelectedModel: (model) => set({ selectedModel: model }),
+  selectedModel: 'GCN',
+  setSelectedModel: (model) => set({ 
+    selectedModel: model, 
+    selectedProtein: null, 
+    currentPrediction: null, 
+    explanation: null,
+    geminiBrief: null,
+    drugs: [],
+    papers: [] 
+  }),
   
   selectedProtein: null,
   setSelectedProtein: (protein) => {
@@ -56,6 +67,7 @@ export const useStore = create<AppState>((set) => ({
       selectedProtein: protein, 
       currentPrediction: null, 
       explanation: null,
+      geminiBrief: null,
       drugs: [],
       papers: [] 
     });
@@ -66,6 +78,9 @@ export const useStore = create<AppState>((set) => ({
   
   explanation: null,
   setExplanation: (explanation) => set({ explanation }),
+  
+  geminiBrief: null,
+  setGeminiBrief: (brief) => set({ geminiBrief: brief }),
   
   drugs: [],
   setDrugs: (drugs) => set({ drugs }),

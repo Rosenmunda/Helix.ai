@@ -21,7 +21,7 @@ export const Header: React.FC = () => {
         {/* Navigation Tabs (Horizontal) */}
         <nav className="flex items-center gap-1">
           <button
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => setActiveTab(activeTab === 'dashboard' ? 'predict' : 'dashboard')}
             className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition ${
               activeTab === 'dashboard'
                 ? 'bg-brand-crimson text-white border border-brand-crimson/30 shadow'

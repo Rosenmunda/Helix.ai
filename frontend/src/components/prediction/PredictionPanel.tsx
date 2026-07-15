@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import api from '../../services/api';
-import { Loader2, BrainCircuit, Activity, FileJson } from 'lucide-react';
+import { Loader2, BrainCircuit, Activity, FileJson, Sparkles } from 'lucide-react';
 
 export const PredictionPanel: React.FC = () => {
   const { 
@@ -11,6 +11,8 @@ export const PredictionPanel: React.FC = () => {
     setCurrentPrediction,
     explanation,
     setExplanation,
+    geminiBrief,
+    setGeminiBrief,
     drugs,
     setDrugs,
     papers,
@@ -22,6 +24,7 @@ export const PredictionPanel: React.FC = () => {
   } = useStore();
 
   const [scanState, setScanState] = useState<'idle' | 'extracting' | 'inferring' | 'explaining' | 'fetching_drugs' | 'fetching_research'>('idle');
+  const [loadingBrief, setLoadingBrief] = useState(false);
 
   const handlePredict = async () => {
     if (!selectedProtein) return;
@@ -30,6 +33,7 @@ export const PredictionPanel: React.FC = () => {
     setError(null);
     setCurrentPrediction(null);
     setExplanation(null);
+    setGeminiBrief(null);
     setDrugs([]);
     setPapers([]);
     
@@ -54,10 +58,27 @@ export const PredictionPanel: React.FC = () => {
       }
       
       setScanState('fetching_drugs');
-      const drugsRes = await api.getDrugs(selectedProtein.id);
+      const drugsRes = await api.getDrugs(selectedProtein.id, selectedModel);
       
       setScanState('fetching_research');
-      const researchRes = await api.getResearch(selectedProtein.id);
+      const researchRes = await api.getResearch(selectedProtein.id, selectedModel);
+
+      // Fetch Gemini AI Brief Section
+      setLoadingBrief(true);
+      try {
+        const briefRes = await api.getGeminiBrief(
+          selectedProtein.id,
+          selectedModel,
+          prediction.prediction,
+          prediction.confidence
+        );
+        setGeminiBrief(briefRes.data.brief);
+      } catch (briefErr) {
+        console.error("Gemini brief fetch error:", briefErr);
+        setGeminiBrief("Failed to generate Gemini brief.");
+      } finally {
+        setLoadingBrief(false);
+      }
 
       setCurrentPrediction(prediction);
       setExplanation(explanationText);
@@ -197,6 +218,26 @@ export const PredictionPanel: React.FC = () => {
               <span className="text-[10px] text-brand-gray dark:text-brand-gray/60 font-bold uppercase tracking-wider block mb-1.5">Biological Basis & Annotations</span>
               <div className="bg-brand-light dark:bg-brand-dark/40 border border-brand-gray/20 dark:border-brand-gray/10 p-3.5 rounded text-xs text-brand-dark dark:text-brand-light leading-relaxed font-mono">
                 {explanation || 'Reasoning text failed to load.'}
+              </div>
+            </div>
+
+            {/* Gemini AI Brief Section */}
+            <div className="pt-3 border-t border-brand-gray/15 dark:border-brand-gray/10">
+              <span className="text-[10px] text-brand-crimson dark:text-brand-red font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-brand-crimson dark:text-brand-red animate-pulse" />
+                <span>AI Essentiality Brief (Powered by Gemini)</span>
+              </span>
+              <div className="bg-brand-crimson/5 dark:bg-brand-red/5 border border-brand-crimson/25 dark:border-brand-crimson/10 p-3.5 rounded text-xs text-brand-dark dark:text-brand-light leading-relaxed">
+                {loadingBrief ? (
+                  <div className="flex items-center gap-2 text-brand-gray/70 py-1 font-semibold">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-crimson dark:text-brand-red" />
+                    <span>Generating Gemini brief...</span>
+                  </div>
+                ) : geminiBrief ? (
+                  <p className="font-medium text-brand-dark dark:text-brand-light">{geminiBrief}</p>
+                ) : (
+                  <p className="text-brand-gray/60 italic">No brief generated. Run inference to query Gemini.</p>
+                )}
               </div>
             </div>
 

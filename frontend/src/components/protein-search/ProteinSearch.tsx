@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../../store/useStore';
 import api from '../../services/api';
-import { Search, ChevronRight, Cpu } from 'lucide-react';
+import { Search, ChevronRight, Cpu, ChevronDown } from 'lucide-react';
 
 export const ProteinSearch: React.FC = () => {
-  const { 
-    selectedModel, 
-    setSelectedModel, 
-    selectedProtein, 
-    setSelectedProtein 
+  const {
+    selectedModel,
+    setSelectedModel,
+    selectedProtein,
+    setSelectedProtein
   } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,10 +34,10 @@ export const ProteinSearch: React.FC = () => {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
+  // Refetch when model or search query changes, limit to 50 for performance dropdown
   const { data: results, isLoading } = useQuery({
-    queryKey: ['proteinSearch', debouncedQuery],
-    queryFn: () => api.searchProteins(debouncedQuery, 10).then(r => r.data.results),
-    enabled: debouncedQuery.length >= 2,
+    queryKey: ['proteinSearch', selectedModel, debouncedQuery],
+    queryFn: () => api.searchProteins(debouncedQuery, 50, selectedModel).then(r => r.data.results),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -56,7 +56,7 @@ export const ProteinSearch: React.FC = () => {
 
   return (
     <div className="space-y-6 select-none text-brand-dark dark:text-brand-light">
-      
+
       {/* 1. Model Configuration selector */}
       <div className="space-y-2">
         <label className="text-[10px] font-bold text-brand-gray uppercase tracking-wider flex items-center gap-1.5">
@@ -65,12 +65,13 @@ export const ProteinSearch: React.FC = () => {
         </label>
         <select
           value={selectedModel}
-          onChange={(e) => setSelectedModel(e.target.value as 'ML' | 'GNN' | 'Graph')}
+          onChange={(e) => setSelectedModel(e.target.value as 'GCN' | 'GraphSAGE' | 'GAT' | 'GraphTheory')}
           className="w-full bg-white dark:bg-[#1a1b26] border border-brand-gray/40 dark:border-brand-gray/10 rounded-lg px-3 py-2 text-xs text-brand-dark dark:text-brand-light outline-none focus:border-brand-crimson dark:focus:border-brand-red transition cursor-pointer shadow-sm"
         >
-          <option value="ML">Classical Classifier (Random Forest)</option>
-          <option value="GNN">Graph Convolutional Network (GNN)</option>
-          <option value="Graph">Clustering Centrality Network</option>
+          <option value="GCN">GCN (Graph Convolutional Network)</option>
+          <option value="GraphSAGE">GraphSAGE Network</option>
+          <option value="GAT">GAT (Graph Attention Network)</option>
+          <option value="GraphTheory">Network Graph Theory</option>
         </select>
       </div>
 
@@ -80,45 +81,62 @@ export const ProteinSearch: React.FC = () => {
           <Search className="w-3.5 h-3.5 text-brand-crimson dark:text-brand-red" />
           <span>Query Target Protein</span>
         </label>
-        
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Enter Protein ID (e.g. A0A1B0GTH6)..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setDropdownOpen(true);
-            }}
-            onFocus={() => setDropdownOpen(true)}
-            className="w-full bg-white dark:bg-[#1a1b26] border border-brand-gray/40 dark:border-brand-gray/10 focus:border-brand-crimson dark:focus:border-brand-red rounded-lg px-3 py-2 text-xs text-brand-dark dark:text-brand-light placeholder-brand-gray/50 outline-none transition shadow-sm"
-          />
 
-          {dropdownOpen && searchQuery.length >= 2 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-[#1a1b26] border border-brand-gray/30 dark:border-brand-gray/10 rounded-lg shadow-xl z-20 max-h-60 overflow-y-auto divide-y divide-brand-gray/10 dark:divide-brand-gray/5">
-              {isLoading && (
-                <div className="p-3 text-center text-[10px] text-brand-gray animate-pulse font-semibold">
-                  Querying database index...
-                </div>
-              )}
-              {results && results.length === 0 && (
-                <div className="p-3 text-center text-[10px] text-brand-gray font-semibold">
-                  No records matched query.
-                </div>
-              )}
-              {results?.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => handleSelect(p)}
-                  className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-brand-light dark:hover:bg-white/5 transition text-left cursor-pointer text-xs text-brand-dark dark:text-brand-light font-medium"
-                >
-                  <div>
-                    <span className="font-bold text-brand-dark dark:text-white">{p.name}</span>
-                    <span className="text-[10px] text-brand-gray ml-2 font-mono">({p.uniprot_id || p.protein_id})</span>
+        <div className="relative">
+          {/* Dropdown Selector Button */}
+          <button
+            type="button"
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="w-full bg-white dark:bg-[#1a1b26] border border-brand-gray/40 dark:border-brand-gray/10 rounded-lg px-3 py-2 text-left text-xs text-brand-dark dark:text-brand-light flex items-center justify-between outline-none focus:border-brand-crimson dark:focus:border-brand-red transition shadow-sm cursor-pointer"
+          >
+            <span className={selectedProtein ? "font-bold text-brand-dark dark:text-white" : "text-brand-gray/60"}>
+              {selectedProtein ? `${selectedProtein.uniprot_id || selectedProtein.protein_id} (${selectedProtein.name})` : 'Select a Protein Target...'}
+            </span>
+            <ChevronDown className={`w-4 h-4 text-brand-crimson dark:text-brand-red transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Search Dropdown Panel */}
+          {dropdownOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-[#1a1b26] border border-brand-gray/30 dark:border-brand-gray/10 rounded-lg shadow-xl z-20 max-h-64 flex flex-col overflow-hidden">
+              {/* Dropdown Search Bar */}
+              <div className="p-2 border-b border-brand-gray/15 dark:border-brand-gray/10 shrink-0 bg-brand-light/20 dark:bg-slate-900 flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-brand-gray/60" />
+                <input
+                  type="text"
+                  placeholder="Filter proteins..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-transparent text-xs text-brand-dark dark:text-brand-light outline-none"
+                  autoFocus
+                />
+              </div>
+
+              {/* Scrollable list of proteins */}
+              <div className="overflow-y-auto flex-1 divide-y divide-brand-gray/10 dark:divide-brand-gray/5">
+                {isLoading && (
+                  <div className="p-3 text-center text-[10px] text-brand-gray animate-pulse font-semibold">
+                    Querying database index...
                   </div>
-                  <ChevronRight className="w-3 h-3 text-brand-crimson dark:text-brand-red" />
-                </button>
-              ))}
+                )}
+                {results && results.length === 0 && (
+                  <div className="p-3 text-center text-[10px] text-brand-gray font-semibold">
+                    No records matched query.
+                  </div>
+                )}
+                {results?.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleSelect(p)}
+                    className="w-full px-3 py-2 flex items-center justify-between hover:bg-brand-light dark:hover:bg-white/5 transition text-left cursor-pointer text-xs text-brand-dark dark:text-brand-light font-medium"
+                  >
+                    <div>
+                      <span className="font-bold text-brand-dark dark:text-white">{p.uniprot_id || p.protein_id}</span>
+                      <span className="text-[10px] text-brand-gray ml-2 font-mono">({p.name})</span>
+                    </div>
+                    <ChevronRight className="w-3 h-3 text-brand-crimson dark:text-brand-red" />
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
